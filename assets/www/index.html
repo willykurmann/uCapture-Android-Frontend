@@ -1,10 +1,111 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
-<head>
-<title>PhoneGap</title>
-<script type="text/javascript" charset="utf-8" src="phonegap-1.2.0.js"></script>
-</head>
-<body>
-<h1>Hello World</h1>
-</body>
+	<head>
+		<title>Capture Image</title>
+		<link rel="stylesheet" href="stylesheets/jquery.mobile-1.0.css" />
+		<script type="text/javascript" charset="utf-8" src="javascripts/phonegap-1.2.0.js"></script>
+		<script type="text/javascript" charset="utf-8" src="javascripts/jquery-1.7.1.js"></script>
+		<script type="text/javascript" charset="utf-8" src="javascripts/jquery.mobile-1.0.js"></script>
+	</head>
+	<body>
+		<div data-role="page" data-fullscreen="true" data-theme="b">
+			<!-- HEADER -->
+			<div data-role="header" data-position="inline">
+				<h1>uCapture</h1>
+				<a id="captureLink" class="ui-btn-right">Capture</a>
+			</div>
+			<!-- -->
+			<!-- CONTENT -->
+			<div data-role="content" role="main">
+				<!-- INSTRUCTIONS -->
+				<div style="text-align: center;margin-bottom:50px;">
+					<p>
+						Press 'Capture' to start taking pictures
+					</p>
+				</div>
+				<!-- -->
+				<!-- IMAGES PANEL -->
+				<div id="imagesPanel" style="display:none;">
+					<!-- IMAGES LIST -->
+					<ul id="imagesList" data-role="listview" class="ui-listview">
+						<li data-role="list-divider" role="heading" class="ui-li ui-li-divider ui-bar-b">
+							Images
+						</li>
+					</ul>
+					<!-- UPLOAD BUTTON -->
+					<p style="text-align:center;">
+						<button id="uploadBtn" data-inline="true">Upload</button>
+					</p>
+				</div>
+			</div>
+		</div>
+		<!-- -->
+		<!-- Scripts -->
+		<script type="text/javascript" charset="utf-8">
+			$(document).ready(function() {
+
+				$.mobile.allowCrossDomainPages = true;
+
+				$('#captureLink').click(function() {
+					navigator.device.capture.captureImage(captureSuccess, captureError, {
+						limit : 2
+					});
+				});
+
+				$('#uploadBtn').click(function() {
+					var images = $('body').data();
+					$.each(images, function(key, image) {
+						uploadImage(image);
+					});
+				});
+			});
+			// Called when capture is finish
+			function captureSuccess(mediafiles) {
+				var imagesList = $('#imagesList');
+
+				for(var index = 0; index < mediafiles.length; index++) {
+					var image = mediafiles[index];
+
+					$('body').data(image.name, image);
+
+					var item = buildListItem(image.fullPath);
+					imagesList.append(item);
+				}
+
+				imagesList.listview('refresh');
+				$('#imagesPanel').slideDown('slow');
+			}
+
+			// Called if something bad happens
+			function captureError(error) {
+			}
+
+			// Build a <li> element with image thumb
+			function buildListItem(imageSrc) {
+				return $('<li class="ui-btn ui-btn-icon-right ui-li-has-arrow ui-li ui-li-has-thumb ui-btn-up-c"/>').append($('<div class="ui-btn-inner ui-li"/>').append($('<div class="ui-btn-text"/>').append($('<a class="ui-link-inherit"/>').append('<img class="ui-li-thumb imageItem" src=' + imageSrc + '/>'))));
+			}
+
+			// Upload image to the server
+			function uploadImage(image) {
+
+				var options = new FileUploadOptions();
+				options.fileKey = "file";
+				options.mimeType = "image/jpeg";
+				options.chunkedMode = false;
+				options.fileName = image.name;			
+
+				new FileTransfer().upload(image.fullPath, 'http://192.168.1.18:3000/images', transfertSuccess, transfertFail, options);
+			}
+
+			// Called when file transfer is finished
+			function transfertSuccess(result) {
+				alert(result.response);
+			}
+
+			// Called if something bad happens
+			function transfertFail(error) {
+				//alert(error.code);
+			}
+		</script>
+	</body>
 </html>
