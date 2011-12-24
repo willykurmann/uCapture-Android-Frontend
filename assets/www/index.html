@@ -1,111 +1,121 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Capture Image</title>
+		<title>uCapture</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<link rel="stylesheet" href="stylesheets/jquery.mobile-1.0.css" />
 		<script type="text/javascript" charset="utf-8" src="javascripts/phonegap-1.2.0.js"></script>
 		<script type="text/javascript" charset="utf-8" src="javascripts/jquery-1.7.1.js"></script>
 		<script type="text/javascript" charset="utf-8" src="javascripts/jquery.mobile-1.0.js"></script>
 	</head>
 	<body>
-		<div data-role="page" data-fullscreen="true" data-theme="b">
-			<!-- HEADER -->
-			<div data-role="header" data-position="inline">
+		<div data-role="page" data-theme="b">
+			<!-- headers -->
+			<div data-role="header" data-position="fixed" data-theme="b">
 				<h1>uCapture</h1>
-				<a id="captureLink" class="ui-btn-right">Capture</a>
 			</div>
-			<!-- -->
-			<!-- CONTENT -->
-			<div data-role="content" role="main">
-				<!-- INSTRUCTIONS -->
-				<div style="text-align: center;margin-bottom:50px;">
-					<p>
-						Press 'Capture' to start taking pictures
-					</p>
+			<!-- /headers -->
+			<!-- content -->
+			<div data-role="content">
+				<!-- commands -->
+				<div class="ui-grid-b">
+					<div class="ui-block-a">
+						<a data-role="button" data-icon="delete" data-iconpos="left" data-corners="false" id="resetBtn">Reset</a>
+					</div>
+					<div class="ui-block-b">
+						<a data-role="button" data-theme="d" data-icon="gear" data-iconpos="left" data-corners="false" id="captureBtn">Capture</a>
+					</div>
+					<div class="ui-block-c">
+						<a data-role="button" data-icon="check" data-iconpos="right" data-corners="false"id="uploadBtn">Upload</a>
+					</div>
 				</div>
-				<!-- -->
-				<!-- IMAGES PANEL -->
-				<div id="imagesPanel" style="display:none;">
-					<!-- IMAGES LIST -->
-					<ul id="imagesList" data-role="listview" class="ui-listview">
-						<li data-role="list-divider" role="heading" class="ui-li ui-li-divider ui-bar-b">
-							Images
+				<!-- /commands -->
+				<!-- captures list -->
+				<p>
+					<ul data-role="listview" id="captures">
+						<li class="list-divider">
+							List of captures
 						</li>
 					</ul>
-					<!-- UPLOAD BUTTON -->
-					<p style="text-align:center;">
-						<button id="uploadBtn" data-inline="true">Upload</button>
-					</p>
-				</div>
+				</p>
+				<!-- /captures list -->
 			</div>
+			<!-- /content -->
 		</div>
-		<!-- -->
-		<!-- Scripts -->
+		<!-- script -->
 		<script type="text/javascript" charset="utf-8">
 			$(document).ready(function() {
-
 				$.mobile.allowCrossDomainPages = true;
+				$('#uploadBtn').hide();
 
-				$('#captureLink').click(function() {
+				// Start to capture image
+				$('#captureBtn').click(function() {
 					navigator.device.capture.captureImage(captureSuccess, captureError, {
-						limit : 2
+						limit : 1
 					});
 				});
-
+				
+				// Remove all the captures taken
+				$('#resetBtn').click(function() {
+					$("#captures > li").not(".list-divider").remove();
+					$('#captures').listview('refresh');
+					$('#uploadBtn').fadeOut('slow');
+				});
+				
+				// Upload all the captures taken
 				$('#uploadBtn').click(function() {
-					var images = $('body').data();
-					$.each(images, function(key, image) {
-						uploadImage(image);
+					$("#captures > li > img").each(function() {
+						var captureURI = $(this).attr("src");
+						uploadCapture(captureURI);
 					});
+					navigator.notification.alert('Upload successful', null, 'uCapture');
 				});
 			});
-			// Called when capture is finish
-			function captureSuccess(mediafiles) {
-				var imagesList = $('#imagesList');
-
-				for(var index = 0; index < mediafiles.length; index++) {
-					var image = mediafiles[index];
-
-					$('body').data(image.name, image);
-
-					var item = buildListItem(image.fullPath);
-					imagesList.append(item);
+			
+			/**
+			 * Capture
+			 */
+			
+			// Called when capture finish
+			function captureSuccess(captures) {
+				for(var index = 0; index < captures.length; index++) {
+					var capture = captures[index];
+					var item = '<li>' + '<img src="' + capture.fullPath + '"></img>' + '</li>';
+					$('#captures').append(item);
 				}
 
-				imagesList.listview('refresh');
-				$('#imagesPanel').slideDown('slow');
+				$('#captures').listview('refresh');
+				$('#uploadBtn').fadeIn('slow');
 			}
 
-			// Called if something bad happens
+			// Called if something bad happens during capture
 			function captureError(error) {
 			}
 
-			// Build a <li> element with image thumb
-			function buildListItem(imageSrc) {
-				return $('<li class="ui-btn ui-btn-icon-right ui-li-has-arrow ui-li ui-li-has-thumb ui-btn-up-c"/>').append($('<div class="ui-btn-inner ui-li"/>').append($('<div class="ui-btn-text"/>').append($('<a class="ui-link-inherit"/>').append('<img class="ui-li-thumb imageItem" src=' + imageSrc + '/>'))));
-			}
+			/**
+			 * File Transfer
+			 */
 
-			// Upload image to the server
-			function uploadImage(image) {
-
+			// Upload a capture to the server
+			function uploadCapture(captureURI) {
 				var options = new FileUploadOptions();
-				options.fileKey = "file";
+				options.fileKey = "capture";
+				options.fileName = captureURI.substr(captureURI.lastIndexOf('/') + 1);
 				options.mimeType = "image/jpeg";
 				options.chunkedMode = false;
-				options.fileName = image.name;			
 
-				new FileTransfer().upload(image.fullPath, 'http://192.168.1.18:3000/images', transfertSuccess, transfertFail, options);
+				new FileTransfer().upload(captureURI, "http://192.168.1.16:3000/upload_capture", transferSuccess, transferFail, options);
 			}
 
-			// Called when file transfer is finished
-			function transfertSuccess(result) {
-				alert(result.response);
+			// Called when file transfer finish
+			function transferSuccess(response) {
 			}
 
-			// Called if something bad happens
-			function transfertFail(error) {
-				//alert(error.code);
+			// Called if something bad happens during file transfer
+			function transferFail(error) {
+				navigator.notification.alert('Error code: ' + error.code, null, 'Capture Error');
 			}
 		</script>
+		<!-- /script -->
 	</body>
 </html>
